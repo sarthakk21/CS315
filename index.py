@@ -9,72 +9,95 @@
 
 # You may define any new functions, variables, classes here
 # For example, functions to create indices or statistics
+
 class TrieNode:
-    def __init__(self):
-        self.links = [None] * 26
-        self.disklocstart = -1
-        self.disklocend = -1
-        self.cnt = 0
+    def __init__(self, start_pos):
+        self.child = [None] * 26  # Initialize array for 26 lowercase English letters
+        self.wordEnd = False       # Mark if the node corresponds to the end of a word
+        self.start = start_pos     # Start index of the word in sorted list
+        self.end = start_pos       # End index of the word in sorted list
 
-def insert_data_in_trie(root, data, offset):
-    for index, item in enumerate(data):
-        current = root
-        for char in item[1]:
-            if current.links[ord(char) - ord('a')] is None:
-                current.links[ord(char) - ord('a')] = TrieNode()
-            current = current.links[ord(char) - ord('a')]
-        if current.disklocstart == -1:
-            current.disklocstart = offset + index
-        current.disklocend = offset + index
-        current.cnt += 1
-
-
-
-
-################################
-# Non Editable Region Starting #
-################################
-def my_index( tuples ):
-################################
-#  Non Editable Region Ending  #
-################################
-
-	# Use this method to create indices and statistics
-	# Each tuple has 3 values -- the id, name and year
-    # Sorting alumni data for disk storage as required
-    sorted_by_year_name = sorted(tuples, key=lambda x: (x[2], x[1]))
-    sorted_by_name = sorted(tuples, key=lambda x: x[1])
-
-    # Disk layout
-    disk = [item[0] for item in sorted_by_year_name] + [item[0] for item in sorted_by_name]
-    
-    # Building global trie for name queries
-    global_trie = TrieNode()
-    insert_data_in_trie(global_trie, sorted_by_name, len(sorted_by_year_name))
-    
-    # Year to disk location mapping and year-specific tries
-    year_map = {}
-    year_tries = {}
-    for idx, item in enumerate(sorted_by_year_name):
-        year = item[2]
-        if year not in year_map:
-            year_map[year] = {'disklocstart': idx, 'disklocend': idx}
-            year_tries[year] = TrieNode()
+def insert_key(root, key, pos):
+    """Inserts a key into the Trie with its starting position."""
+    curr = root
+    for c in key:
+        index = ord(c) - ord('a')  # Calculate the index for the character
+        if curr.child[index] is None:
+            curr.child[index] = TrieNode(pos)  # Create new node if needed
         else:
-            year_map[year]['disklocend'] = idx
-        
-        # Insert into year-specific trie
-        insert_data_in_trie(year_tries[year], [item], 0)
-    
-    # idx_stat setup
-    idx_stat = {
-        'global_trie': global_trie,
-        'year_map': year_map,
-        'year_tries': year_tries,
-        'min_year': min(year_map.keys(), default=None),
-        'max_year': max(year_map.keys(), default=None)
+            curr.end = pos  # Update the end position for existing node
+        curr = curr.child[index]
+    curr.wordEnd = True
+
+def my_index(tuples):
+    """Creates indices and statistics from the input list of tuples."""
+    ids, names, years = zip(*tuples)
+
+    # Sorting tuples by year (primary) and name (secondary)
+    sorted_by_years = sorted(zip(years, names, ids))
+    years_sorted = [year for year, _, _ in sorted_by_years]
+    names_sorted_by_year = [name for _, name, _ in sorted_by_years]
+    disk_by_years = [id_ for _, _, id_ in sorted_by_years]
+
+    # Sorting tuples by name (primary) and id (secondary)
+    sorted_by_names = sorted(zip(names, ids))
+    names_sorted = [name for name, _ in sorted_by_names]
+    disk_by_names = [id_ for _, id_ in sorted_by_names]
+
+    # Combined disk map
+    disk = disk_by_years + disk_by_names
+    n = len(ids)
+
+    # Initializing the Trie with names sorted by name and ids
+    root = TrieNode(-1)
+    for i in range(n):
+        insert_key(root, names_sorted[i], n + i)
+
+    # Building yearly Tries
+    current_year = years_sorted[0]
+    yearly_root = TrieNode(-1)
+    insert_key(yearly_root, names_sorted_by_year[0], 0)
+    yearly_roots = []
+
+    for i in range(1, n):
+        if years_sorted[i] == current_year:
+            insert_key(yearly_root, names_sorted_by_year[i], i)
+        else:
+            # Set the start and end positions for the current yearly Trie
+            for item in yearly_root.child:
+                if item is not None:
+                    yearly_root.start = item.start
+                    break
+            for item in reversed(yearly_root.child):
+                if item is not None:
+                    yearly_root.end = item.end
+                    break
+            yearly_roots.append((current_year, yearly_root))
+
+            # Update for the next year
+            current_year = years_sorted[i]
+            yearly_root = TrieNode(-1)
+            insert_key(yearly_root, names_sorted_by_year[i], i)
+
+    # Final adjustments for the last year in the list
+    for item in yearly_root.child:
+        if item is not None:
+            yearly_root.start = item.start
+            break
+    for item in reversed(yearly_root.child):
+        if item is not None:
+            yearly_root.end = item.end
+            break
+    yearly_roots.append((current_year, yearly_root))
+
+    # Packing index and statistics
+    my_index = [yearly_roots, root]
+    my_stats = {
+        "count": len(years),
+        "min": min(years),
+        "max": max(years)
     }
-	
-	# THE METHOD SHOULD RETURN A DISK MAP AND A VARIABLE PACKAGING INDICES AND STATS
-    
-	return disk, idx_stat
+
+    # Return the combined disk map and the index-statistics package
+    idx_stat = [my_index, my_stats]
+    return disk, idx_stat
