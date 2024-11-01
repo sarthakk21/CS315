@@ -16,6 +16,7 @@ class TrieNode:
         self.wordEnd = False       # Mark if the node corresponds to the end of a word
         self.start = start_pos     # Start index of the word in sorted list
         self.end = start_pos       # End index of the word in sorted list
+        self.count = 0
 
 def insert_key(root, key, pos):
     """Inserts a key into the Trie with its starting position."""
@@ -27,6 +28,7 @@ def insert_key(root, key, pos):
         else:
             curr.end = pos  # Update the end position for existing node
         curr = curr.child[index]
+    curr.count += 1
     curr.wordEnd = True
 
 def my_index(tuples):
@@ -46,7 +48,7 @@ def my_index(tuples):
 
     # Combined disk map
     disk = disk_by_years + disk_by_names
-    n = len(ids)
+    n = len(disk_by_years)
 
     # Initializing the Trie with names sorted by name and ids
     root = TrieNode(-1)
@@ -55,7 +57,7 @@ def my_index(tuples):
 
     # Building yearly Tries
     current_year = years_sorted[0]
-    yearly_root = TrieNode(-1)
+    yearly_root = TrieNode(0)
     insert_key(yearly_root, names_sorted_by_year[0], 0)
     yearly_roots = []
 
@@ -63,31 +65,15 @@ def my_index(tuples):
         if years_sorted[i] == current_year:
             insert_key(yearly_root, names_sorted_by_year[i], i)
         else:
-            # Set the start and end positions for the current yearly Trie
-            for item in yearly_root.child:
-                if item is not None:
-                    yearly_root.start = item.start
-                    break
-            for item in reversed(yearly_root.child):
-                if item is not None:
-                    yearly_root.end = item.end
-                    break
+            yearly_root.end = i-1
             yearly_roots.append((current_year, yearly_root))
 
             # Update for the next year
             current_year = years_sorted[i]
-            yearly_root = TrieNode(-1)
+            yearly_root = TrieNode(i)
             insert_key(yearly_root, names_sorted_by_year[i], i)
 
-    # Final adjustments for the last year in the list
-    for item in yearly_root.child:
-        if item is not None:
-            yearly_root.start = item.start
-            break
-    for item in reversed(yearly_root.child):
-        if item is not None:
-            yearly_root.end = item.end
-            break
+    yearly_root.end = n-1
     yearly_roots.append((current_year, yearly_root))
 
     # Packing index and statistics
