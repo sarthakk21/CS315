@@ -40,7 +40,7 @@ def execute_name_like(trie, prefix):
         if current.child[ord(char)-ord('a')] is None:
             return []
         current = current.child[ord(char) - ord('a')]
-    return list(range(current.start,current.end+1))
+    return list(range(current.start,current.end + 1))
 
 def execute_year_query(year_map, operator, value):
     if operator == '=':

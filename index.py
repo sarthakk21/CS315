@@ -25,9 +25,10 @@ def insert_key(root, key, pos):
         index = ord(c) - ord('a')  # Calculate the index for the character
         if curr.child[index] is None:
             curr.child[index] = TrieNode(pos)  # Create new node if needed
+            curr = curr.child[index]
         else:
+            curr = curr.child[index]
             curr.end = pos  # Update the end position for existing node
-        curr = curr.child[index]
     curr.count += 1
     curr.wordEnd = True
 
